@@ -1,92 +1,32 @@
-prometheus.remote_write "local" {
+
+
+local.file_match "local_files" {
+    path_targets = [{"__path__" = "/var/log/*.log"}]
+    sync_period = "5s"
+}
+
+loki.source.file "log_scrape" {
+  targets    = local.file_match.local_files.targets
+  forward_to = [loki.process.filter_logs.receiver]
+  tail_from_end = true
+}
+
+loki.process "filter_logs" {
+  stage.drop {
+      source = ""
+      expression  = ".*Connection closed by authenticating user root"
+      drop_counter_reason = "noisy"
+    }
+  forward_to = [loki.write.grafana_loki.receiver]
+  }
+
+loki.write "grafana_loki" {
   endpoint {
-    url = "http://mimir:9009/api/v1/push"
-  }
-}
+    url = "http://localhost:3100/loki/api/v1/push"
 
-loki.write "local" {
-  endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
-  }
-}
-
-otelcol.exporter.otlp "local" {
-  client {
-    endpoint = "tempo:4317"
-  }
-}
-
-pyroscope.write "local" {
-  endpoint {
-    url = "http://pyroscope:4100"
-  }
-}
-
-otelcol.exporter.prometheus "to_prometheus" {
-  forward_to = [
-    prometheus.remote_write.local.receiver,
-  ]
-}
-
-loki.write "to_loki" {
-  endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
-  }
-}
-//forward_to = [loki.write.to_loki.receiver]
-// 
-
-otelcol.receiver.otlp "default" {
-  grpc {}
-  http {}
-  output {
-    metrics = [otelcol.exporter.prometheus.to_prometheus.input]
-    logs = [otelcol.exporter.loki.to_loki.input]
-    traces = [otelcol.exporter.otlp.local.input]
-  }
-}
-
-prometheus.scrape "linux_node" {
-  targets = prometheus.exporter.unix.node.targets
-  forward_to = [
-    prometheus.remote_write.local.receiver,
-  ]
-}
-
-prometheus.exporter.unix "node" {
-}
-
-loki.relabel "journal" {
-  forward_to = []
-
-  rule {
-    source_labels = ["__journal__systemd_unit"]
-    target_label  = "unit"
-  }
-  rule {
-    source_labels = ["__journal__boot_id"]
-    target_label  = "boot_id"
-  }
-  rule {
-    source_labels = ["__journal__transport"]
-    target_label  = "transport"
-  }
-  rule {
-    source_labels = ["__journal_priority_keyword"]
-    target_label  = "level"
-  }
-  rule {
-    source_labels = ["__journal__hostname"]
-    target_label  = "instance"
-  }
-}
-
-loki.source.journal "read" {
-  forward_to = [
-    loki.write.local.receiver,
-  ]
-  relabel_rules = loki.relabel.journal.rules
-  labels = {
-    "job" = "integrations/node_exporter",
+    // basic_auth {
+    //  username = "admin"
+    //  password = "admin"
+    // }
   }
 }
