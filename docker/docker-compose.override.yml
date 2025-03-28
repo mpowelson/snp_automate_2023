@@ -1,0 +1,5 @@
+services:
+  snp_automate_2023:
+    environment:
+      SNP_SIM_ROBOT: true
+      SNP_SIM_VISION: true
