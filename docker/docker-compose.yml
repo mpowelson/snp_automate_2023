@@ -12,6 +12,7 @@ services:
       ROS_LOG_DIR: /tmp/.ros
       ROS_LOCALHOST_ONLY: $ROS_LOCALHOST_ONLY
       ROS_DOMAIN_ID: $ROS_DOMAIN_ID
+      # ROS_LOG_LEVEL: DEBUG
     container_name: snp_automate_2023
     image: ghcr.io/ros-industrial-consortium/snp_automate_2023:humble-master
     stdin_open: true
@@ -28,7 +29,9 @@ services:
       - /etc/group:/etc/group:ro
       - /etc/shadow:/etc/shadow:ro
       - /dev:/dev
-      - ros-logs:/tmp/.ros
+      - /tmp/.ros:/tmp/.ros
+    depends_on:
+      - init_dirs
     # deploy:
     #   resources:
     #     reservations:
@@ -49,6 +52,15 @@ services:
     tty: true
     network_mode: host
  
+  # Helper to create directories if they don't exist
+  init_dirs:
+    image: alpine
+    command: ["sh", "-c", "mkdir -p /tmp/.ros && chown ${CURRENT_UID} /tmp/.ros"]
+    volumes:
+      - /tmp/.ros:/tmp/.ros
+    user: "0:0"
+    entrypoint: ""
+
   loki:
     image: grafana/loki:3.0.0
     ports:
@@ -111,10 +123,11 @@ services:
       - ./config.alloy:/config.alloy
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
-      - ros-logs:/ros_logs
+      - /tmp/.ros:/tmp/.ros
       - ${HOME}/.data_alloy:/data
     depends_on:
       - loki
+      - init_dirs
 
 
 
@@ -146,4 +159,3 @@ services:
 
 volumes:
   grafana-storage:
-  ros-logs:
