@@ -103,16 +103,16 @@ services:
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
-    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "/config.alloy"]
-
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "--storage.path=/data", "/config.alloy"]
     ports:
       - "12345:12345"  # expose Alloy's debug UI
-
+    user: "${CURRENT_UID}"
     volumes:
       - ./config.alloy:/config.alloy
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ros-logs:/ros_logs
+      - ${HOME}/.data_alloy:/data
     depends_on:
       - loki
 
